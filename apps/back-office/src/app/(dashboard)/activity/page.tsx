@@ -1,8 +1,10 @@
+
 "use client";
 
 import TopBar from "@/components/layouts/Topbar";
 import History from "@/(dashboard)/activity/components/History";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@mcw/ui";
+
 
 export default function ClientsPage() {
 

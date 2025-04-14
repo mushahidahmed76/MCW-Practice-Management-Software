@@ -1,51 +1,67 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { Button, Badge } from "@mcw/ui";
 import DataTable from "@/components/table/DataTable";
 
-const rows = [
-  {
-    id: 1,
-    date: "02/26/2025",
-    time: "11:14 AM (EST)",
-    event: "created an appointment on 02/27/2025 at 9:15 am for client ",
-    user_id: '3710EEAB-D152-486C-82F7-6CA98AB5769D',
-    username: 'John Doe',
-    client_name: 'Shawaiz Sarfraz',
+interface HistoryEntry {
+  id: string;
+  date: string;
+  time: string;
+  event: string;
+  user_id: string;
+  username: string;
+  client_name: string | null;
+}
 
-  },
-  {
-    id: 2,
-    date: "02/26/2025",
-    time: "11:14 AM (EST)",
-    event: "created an appointment on 02/27/2025 at 9:15 am for client ",
-    user_id: '3710EEAB-D152-486C-82F7-6CA98AB5769D',
-    username: 'John Doe',
-    client_name: 'Shawaiz Sarfraz',
-  },
-  {
-    id: 3,
-    date: "02/26/2025",
-    time: "11:14 AM (EST)",
-    event: "created an appointment on 02/27/2025 at 9:15 am for client ",
-    user_id: '3710EEAB-D152-486C-82F7-6CA98AB5769D',
-    username: 'John Doe',
-    client_name: 'Shawaiz Sarfraz',
-  },
-  {
-    id: 4,
-    date: "02/26/2025",
-    time: "11:14 AM (EST)",
-    event: "created an appointment on 02/27/2025 at 9:15 am for client ",
-    user_id: '3710EEAB-D152-486C-82F7-6CA98AB5769D',
-    username: 'John Doe',
-    client_name: 'Shawaiz Sarfraz',
-  },
-];
+interface HistoryTableProps {
+  onRowClick: (id: string) => void;
+  searchTerm: string;
+  sortOrder: "asc" | "desc";
+}
 
-// TODO: Add right type
-const HistoryTable = (props: { onRowClick: (id: string) => void }) => {
+const HistoryTable = ({ onRowClick, searchTerm, sortOrder }: HistoryTableProps) => {
+  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    pages: 0,
+    page: 1,
+    limit: 10
+  });
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          page: pagination.page.toString(),
+          limit: pagination.limit.toString(),
+          sortOrder,
+          ...(searchTerm && { search: searchTerm })
+        });
+
+        const response = await fetch(`/api/history?${params}`);
+        if (!response.ok) throw new Error('Failed to fetch history');
+        
+        const data = await response.json();
+        setHistory(data.data);
+        setPagination(prev => ({
+          ...prev,
+          total: data.pagination.total,
+          pages: data.pagination.pages
+        }));
+      } catch (error) {
+        console.error('Error fetching history:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [searchTerm, sortOrder, pagination.page, pagination.limit]);
+
   const columns = [
     {
       key: "date",
@@ -58,16 +74,34 @@ const HistoryTable = (props: { onRowClick: (id: string) => void }) => {
     {
       key: "event",
       label: "Event",
-      formatter: (row: typeof rows[number]) =>
-        `You ${row.event}${row.client_name}`,
-      // TODO: Replace "You" with sign in user logic
+      formatter: (row: HistoryEntry) => {
+        const userText = row.username === 'System' ? 'System' : row.username;
+        return row.client_name 
+          ? `${userText} ${row.event} for ${row.client_name}`
+          : `${userText} ${row.event}`;
+      }
     },
   ];
 
   return (
-    // TODO: Add right type
-    // @ts-expect-error - TODO: Add right type
-    <DataTable columns={columns} rows={rows} onRowClick={props.onRowClick} />
+    <div className="relative min-h-[400px]">
+      {loading ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-60">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      ) : null}
+      <DataTable 
+        columns={columns} 
+        rows={history} 
+        onRowClick={onRowClick}
+        pagination={{
+          total: pagination.total,
+          pages: pagination.pages,
+          current: pagination.page,
+          onPageChange: (page) => setPagination(prev => ({ ...prev, page }))
+        }}
+      />
+    </div>
   );
 };
 
